@@ -1,58 +1,7 @@
 import { Module } from "@/types";
 
 export const modules: Module[] = [
-  // LEVEL 1
-  {
-    moduleId: "mkdir",
-    title: "Membuat Folder dengan mkdir",
-    level: 1,
-    summary: "Membuat direktori/folder baru di Linux.",
-    commandMeaning: "make directory",
-    command: "mkdir",
-    syntax: "mkdir [nama_folder]",
-    examples: ["mkdir latihan-linux", "mkdir project-web", "mkdir data"],
-    notes: [
-      "Nama folder sebaiknya tidak menggunakan spasi. Gunakan tanda hubung (-) atau underscore (_) jika terdiri dari beberapa kata.",
-      "Linux bersifat case-sensitive. Folder 'Latihan' berbeda dengan 'latihan'."
-    ],
-    exerciseIds: ["ex-mkdir-01"],
-    requiredPoints: 10,
-    isLocked: false
-  },
-  {
-    moduleId: "ls",
-    title: "Melihat Isi Folder dengan ls",
-    level: 1,
-    summary: "Melihat daftar file dan folder di lokasi saat ini.",
-    commandMeaning: "list",
-    command: "ls",
-    syntax: "ls [argumen_opsional]",
-    examples: ["ls", "ls -l", "ls -la"],
-    notes: [
-      "Secara default, 'ls' hanya menampilkan file/folder yang tidak tersembunyi (hidden).",
-      "Gunakan flag '-a' untuk melihat file tersembunyi (yang diawali titik seperti .env)."
-    ],
-    exerciseIds: ["ex-ls-01"],
-    requiredPoints: 10,
-    isLocked: false
-  },
-  {
-    moduleId: "cd",
-    title: "Pindah Folder dengan cd",
-    level: 1,
-    summary: "Masuk atau berpindah ke direktori lain.",
-    commandMeaning: "change directory",
-    command: "cd",
-    syntax: "cd [path_folder]",
-    examples: ["cd latihan-linux", "cd ..", "cd ~"],
-    notes: [
-      "Gunakan 'cd ..' untuk naik satu tingkat ke folder di atasnya.",
-      "Gunakan 'cd ~' atau cukup 'cd' untuk langsung kembali ke home directory."
-    ],
-    exerciseIds: ["ex-cd-01"],
-    requiredPoints: 10,
-    isLocked: false
-  },
+  // LEVEL 1 — Navigasi dan Folder
   {
     moduleId: "pwd",
     title: "Posisi Saat Ini dengan pwd",
@@ -69,8 +18,72 @@ export const modules: Module[] = [
     requiredPoints: 10,
     isLocked: false
   },
+  {
+    moduleId: "mkdir",
+    title: "Membuat Folder dengan mkdir",
+    level: 1,
+    summary: "Membuat direktori/folder baru di Linux.",
+    commandMeaning: "make directory",
+    command: "mkdir",
+    syntax: "mkdir [nama_folder]",
+    examples: ["mkdir latihan", "mkdir sekolah"],
+    notes: [
+      "Nama folder sebaiknya tidak menggunakan spasi. Gunakan tanda hubung (-) atau underscore (_) jika terdiri dari beberapa kata.",
+      "Linux bersifat case-sensitive. Folder 'Latihan' berbeda dengan 'latihan'."
+    ],
+    exerciseIds: ["ex-mkdir-01", "ex-mkdir-02"],
+    requiredPoints: 20,
+    isLocked: false
+  },
+  {
+    moduleId: "ls",
+    title: "Melihat Isi Folder dengan ls",
+    level: 1,
+    summary: "Melihat daftar file dan folder di lokasi saat ini.",
+    commandMeaning: "list",
+    command: "ls",
+    syntax: "ls [argumen_opsional]",
+    examples: ["ls", "ls -l", "ls -a"],
+    notes: [
+      "Secara default, 'ls' hanya menampilkan file/folder yang tidak tersembunyi (hidden).",
+      "Gunakan flag '-a' untuk melihat file tersembunyi (yang diawali titik)."
+    ],
+    exerciseIds: ["ex-ls-01", "ex-ls-02", "ex-ls-03"],
+    requiredPoints: 30,
+    isLocked: false
+  },
+  {
+    moduleId: "cd",
+    title: "Pindah Folder dengan cd",
+    level: 1,
+    summary: "Masuk atau berpindah ke direktori lain.",
+    commandMeaning: "change directory",
+    command: "cd",
+    syntax: "cd [path_folder]",
+    examples: ["cd latihan", "cd ..", "cd ~", "cd sekolah/kelas/tugas"],
+    notes: [
+      "cd nama_folder untuk masuk ke folder.",
+      "cd .. untuk kembali satu folder ke atas.",
+      "cd ~ untuk kembali ke home.",
+      "cd folder1/folder2/folder3 untuk masuk langsung ke folder bertingkat jika foldernya sudah ada."
+    ],
+    exerciseIds: [
+      "ex-cd-01",
+      "ex-cd-02",
+      "ex-cd-03",
+      "ex-cd-04",
+      "ex-cd-05",
+      "ex-cd-06",
+      "ex-cd-07",
+      "ex-cd-08",
+      "ex-cd-09",
+      "ex-cd-10"
+    ],
+    requiredPoints: 100,
+    isLocked: false
+  },
 
-  // LEVEL 2
+  // LEVEL 2 — File Dasar
   {
     moduleId: "touch",
     title: "Membuat File dengan touch",
@@ -78,12 +91,31 @@ export const modules: Module[] = [
     summary: "Membuat file kosong baru di folder saat ini.",
     command: "touch",
     syntax: "touch [nama_file]",
-    examples: ["touch catatan.txt", "touch index.html", "touch config.json"],
+    examples: ["touch catatan.txt", "touch data.doc", "touch index.html"],
     notes: [
       "Jika file sudah ada, command ini tidak akan menimpa isinya, melainkan hanya memperbarui timestamp akses file tersebut."
     ],
-    exerciseIds: ["ex-touch-01"],
-    requiredPoints: 10,
+    exerciseIds: ["ex-touch-01", "ex-touch-02", "ex-touch-03"],
+    requiredPoints: 20,
+    isLocked: true
+  },
+  {
+    moduleId: "echo-overwrite",
+    title: "Menulis File dengan echo & Redirection >",
+    level: 2,
+    summary: "Menulis teks ke dalam file menggunakan echo dan operator pengarah overwrite.",
+    command: "echo >",
+    syntax: "echo \"teks\" > [nama_file]",
+    examples: [
+      "echo \"Saya belajar Linux\" > catatan.txt",
+      "echo \"<h1>Halo Linux</h1>\" > index.html",
+      "echo \"Materi command dasar\" > catatan.txt"
+    ],
+    notes: [
+      "Operator '>' akan menulis teks dan MENIMPA (overwrite) seluruh isi lama file tersebut."
+    ],
+    exerciseIds: ["ex-echo-01", "ex-echo-02", "ex-echo-03"],
+    requiredPoints: 20,
     isLocked: true
   },
   {
@@ -98,48 +130,30 @@ export const modules: Module[] = [
     notes: [
       "Hanya cocok untuk membaca file teks pendek. Untuk file yang sangat panjang, command ini akan langsung menggulung terminal sampai baris terakhir."
     ],
-    exerciseIds: ["ex-cat-01"],
-    requiredPoints: 10,
+    exerciseIds: ["ex-cat-01", "ex-cat-02"],
+    requiredPoints: 20,
     isLocked: true
   },
   {
-    moduleId: "echo-redirection",
-    title: "Menulis File dengan echo & Redirection",
+    moduleId: "echo-append",
+    title: "Menambahkan Isi File dengan echo & Redirection >>",
     level: 2,
-    summary: "Menulis teks ke dalam file menggunakan echo dan operator pengarah.",
-    command: "echo",
-    syntax: "echo \"teks\" > [nama_file]\necho \"teks\" >> [nama_file]",
+    summary: "Menambahkan teks ke dalam file menggunakan echo dan operator pengarah append.",
+    command: "echo >>",
+    syntax: "echo \"teks\" >> [nama_file]",
     examples: [
-      "echo \"Saya belajar Linux\" > catatan.txt",
-      "echo \"Baris baru\" >> catatan.txt"
+      "echo \"Baris baru\" >> catatan.txt",
+      "echo \"Selesai belajar\" >> catatan.txt"
     ],
     notes: [
-      "Operator '>' akan menulis teks dan MENIMPA (overwrite) seluruh isi lama file tersebut.",
       "Operator '>>' akan MENAMBAHKAN (append) teks pada baris baru di akhir file tanpa menghapus isi sebelumnya."
     ],
-    exerciseIds: ["ex-echo-01", "ex-echo-02"],
+    exerciseIds: ["ex-echo-append-01", "ex-echo-append-02"],
     requiredPoints: 20,
     isLocked: true
   },
 
-  // LEVEL 3
-  {
-    moduleId: "mv",
-    title: "Memindahkan / Rename dengan mv",
-    level: 3,
-    summary: "Memindahkan file/folder ke lokasi lain atau mengubah nama file/folder.",
-    commandMeaning: "move",
-    command: "mv",
-    syntax: "mv [sumber] [tujuan]",
-    examples: ["mv catatan.txt folder-tujuan/", "mv lama.txt baru.txt", "mv data.csv ../backup/"],
-    notes: [
-      "Jika tujuan adalah nama file baru, maka fungsinya adalah mengubah nama (rename).",
-      "Jika tujuan adalah folder yang ada, fungsinya adalah memindahkan (move)."
-    ],
-    exerciseIds: ["ex-mv-01"],
-    requiredPoints: 10,
-    isLocked: true
-  },
+  // LEVEL 3 — Manajemen File
   {
     moduleId: "cp",
     title: "Menyalin File dengan cp",
@@ -148,12 +162,29 @@ export const modules: Module[] = [
     commandMeaning: "copy",
     command: "cp",
     syntax: "cp [sumber] [tujuan]",
-    examples: ["cp catatan.txt backup.txt", "cp data.json ../archive/"],
+    examples: ["cp catatan.txt backup.txt", "cp index.html index-backup.html"],
     notes: [
       "Secara default, 'cp' hanya menyalin file. Untuk menyalin folder beserta seluruh isinya, Anda harus menggunakan flag '-r' (recursive)."
     ],
-    exerciseIds: ["ex-cp-01"],
-    requiredPoints: 10,
+    exerciseIds: ["ex-cp-01", "ex-cp-02"],
+    requiredPoints: 20,
+    isLocked: true
+  },
+  {
+    moduleId: "mv",
+    title: "Memindahkan / Rename dengan mv",
+    level: 3,
+    summary: "Memindahkan file/folder ke lokasi lain atau mengubah nama file/folder.",
+    commandMeaning: "move",
+    command: "mv",
+    syntax: "mv [sumber] [tujuan]",
+    examples: ["mv backup.txt salinan.txt", "mv salinan.txt arsip/"],
+    notes: [
+      "Jika tujuan adalah nama file baru, maka fungsinya adalah mengubah nama (rename).",
+      "Jika tujuan adalah folder yang ada, fungsinya adalah memindahkan (move)."
+    ],
+    exerciseIds: ["ex-mv-01", "ex-mv-02"],
+    requiredPoints: 20,
     isLocked: true
   },
   {
@@ -164,23 +195,23 @@ export const modules: Module[] = [
     commandMeaning: "remove",
     command: "rm",
     syntax: "rm [nama_file]",
-    examples: ["rm catatan.txt", "rm temp.log"],
+    examples: ["rm salinan.txt", "rm data.doc"],
     notes: [
       "Hati-hati! File yang dihapus di terminal Linux tidak masuk ke Recycle Bin / Trash, melainkan langsung terhapus secara permanen."
     ],
-    exerciseIds: ["ex-rm-01"],
-    requiredPoints: 10,
+    exerciseIds: ["ex-rm-01", "ex-rm-02"],
+    requiredPoints: 20,
     isLocked: true
   },
   {
-    moduleId: "rm-r",
+    moduleId: "rm-recursive",
     title: "Menghapus Folder dengan rm -r",
     level: 3,
     summary: "Menghapus folder beserta seluruh isinya secara rekursif.",
     commandMeaning: "remove recursive",
     command: "rm -r",
     syntax: "rm -r [nama_folder]",
-    examples: ["rm -r folder-lama", "rm -rf cache_dir"],
+    examples: ["rm -r arsip", "rm -rf latihan"],
     notes: [
       "Peringatan Keras! Command 'rm -r' atau 'rm -rf' sangat berbahaya jika salah menentukan target folder.",
       "Gunakan selalu dengan ekstra teliti. Sekali terhapus, data tidak bisa dikembalikan sama sekali."
@@ -191,7 +222,7 @@ export const modules: Module[] = [
     isLocked: true
   },
 
-  // LEVEL 4
+  // LEVEL 4 — Vim Dasar
   {
     moduleId: "vim",
     title: "Mengedit File dengan Vim",
@@ -199,7 +230,16 @@ export const modules: Module[] = [
     summary: "Membuka dan mengedit file teks langsung di dalam terminal menggunakan text editor Vim.",
     command: "vim",
     syntax: "vim [nama_file]",
-    examples: ["vim catatan.txt", "vim index.html"],
+    examples: [
+      "vim catatan.txt",
+      "i",
+      "Esc",
+      ":w",
+      ":wa",
+      ":wq",
+      ":q!",
+      "Ctrl+C"
+    ],
     notes: [
       "Vim memiliki beberapa mode kerja utama: Normal Mode, Insert Mode, dan Command Mode.",
       "Secara default saat membuka file, Anda berada di Normal Mode. Anda tidak bisa mengetik teks langsung.",
@@ -208,125 +248,158 @@ export const modules: Module[] = [
       "Untuk menyimpan dan keluar, dari Normal Mode ketik ':wq' lalu tekan Enter. Untuk keluar tanpa menyimpan, ketik ':q!' lalu tekan Enter.",
       "Jika terminal terasa stuck atau terkunci, Anda bisa menekan tombol Ctrl + C untuk membatalkan proses yang berjalan."
     ],
-    exerciseIds: ["ex-vim-01", "ex-vim-02"],
-    requiredPoints: 20,
-    isLocked: true
-  },
-
-  // LEVEL 5
-  {
-    moduleId: "permission-intro",
-    title: "Konsep Permission Linux Dasar",
-    level: 5,
-    summary: "Memahami sistem hak akses file/folder (permission) di Linux.",
-    command: "chmod",
-    syntax: "chmod [permission_oktal] [nama_file]",
-    examples: ["chmod 777 script.sh", "chmod 400 rahasia.txt"],
-    notes: [
-      "Ada 3 kelompok pengguna (user): Owner/User (pemilik), Group (kelompok), dan Others (pengguna umum).",
-      "Ada 3 hak akses dasar dengan nilai oktalnya:\n- Read (r) = 4\n- Write (w) = 2\n- Execute (x) = 1",
-      "Angka permission diperoleh dengan menjumlahkan nilai hak akses untuk masing-masing kelompok (contoh: r+w = 4+2 = 6).",
-      "Contoh: chmod 777 memberikan akses penuh (read+write+execute = 7) ke Owner, Group, dan Others.",
-      "Contoh: chmod 400 memberikan akses read (4) hanya ke Owner. Group dan Others tidak memiliki akses sama sekali (0)."
+    exerciseIds: [
+      "ex-vim-01",
+      "ex-vim-02",
+      "ex-vim-03",
+      "ex-vim-04",
+      "ex-vim-05",
+      "ex-vim-06",
+      "ex-vim-07"
     ],
-    exerciseIds: ["ex-perm-01", "ex-perm-02"],
-    requiredPoints: 30,
+    requiredPoints: 50,
     isLocked: true
   },
 
-  // LEVEL 6
+  // LEVEL 5 — Permission Dasar
   {
     moduleId: "ls-l",
     title: "Membaca Permission dari ls -l",
-    level: 6,
+    level: 5,
     summary: "Melihat dan memahami representasi hak akses file melalui format detail ls -l.",
     command: "ls -l",
     syntax: "ls -l [nama_file_atau_folder]",
     examples: ["ls -l", "ls -la file.txt"],
     notes: [
-      "Output 'ls -l' diawali dengan string permission 10 karakter, contoh: -rw-r--r--",
-      "Karakter ke-1: tipe data ('-' = file biasa, 'd' = direktori/folder).",
-      "Karakter ke-2 s/d 4: hak akses Owner (contoh: rw- = read & write).",
-      "Karakter ke-5 s/d 7: hak akses Group (contoh: r-- = hanya read).",
-      "Karakter ke-8 s/d 10: hak akses Others (contoh: r-- = hanya read)."
+      "Output 'ls -l' diawali dengan string permission 10 karakter, contoh: -rw-r--r--"
     ],
     exerciseIds: ["ex-lsl-01", "ex-lsl-02"],
     requiredPoints: 20,
     isLocked: true
   },
-
-  // LEVEL 7
   {
-    moduleId: "chmod-numeric",
-    title: "chmod Angka (Numeric Mode)",
-    level: 7,
-    summary: "Mengatur hak akses file/folder secara presisi menggunakan angka representasi oktal.",
+    moduleId: "permission-intro",
+    title: "Konsep Permission Linux Dasar",
+    level: 5,
+    summary: "Memahami sistem hak akses file/folder (permission) di Linux secara teoretis.",
     command: "chmod",
-    syntax: "chmod [tiga_digit_angka] [nama_file]",
-    examples: ["chmod 644 index.php", "chmod 755 public_html", "chmod 600 config.php"],
+    syntax: "chmod [permission_oktal] [nama_file]",
+    examples: ["chmod 777 script.sh", "chmod 400 rahasia.txt"],
     notes: [
-      "Rekomendasi standar keamanan website:\n- File php/html biasa: 644 (Owner: rw, Group: r, Others: r)\n- Folder/direktori: 755 (Owner: rwx, Group: rx, Others: rx)",
-      "Hindari menggunakan permission 777 untuk file website karena sangat berisiko keamanan (siapa saja bisa memodifikasi dan mengeksekusi file tersebut)."
+      "Ada 3 hak akses dasar dengan nilai oktalnya:\n- Read (r) = 4\n- Write (w) = 2\n- Execute (x) = 1"
     ],
-    exerciseIds: ["ex-chmodnum-01", "ex-chmodnum-02"],
-    requiredPoints: 30,
-    isLocked: true
-  },
-
-  // LEVEL 8
-  {
-    moduleId: "chmod-symbolic",
-    title: "chmod Simbolik (Symbolic Mode)",
-    level: 8,
-    summary: "Mengubah hak akses file/folder menggunakan simbol representasi kelompok user (+/-/= dan rwx).",
-    command: "chmod",
-    syntax: "chmod [user_group_others][+/-][rwx] [nama_file]",
-    examples: ["chmod u+x run.sh", "chmod g-w config.php", "chmod o-r data.json", "chmod a+r readme.md"],
-    notes: [
-      "Simbol kelompok:\n- u = user/owner\n- g = group\n- o = others\n- a = all (semua kelompok sekaligus)",
-      "Simbol aksi:\n- '+' = menambahkan hak akses\n- '-' = mencabut/menghapus hak akses\n- '=' = menetapkan hak akses secara mutlak"
-    ],
-    exerciseIds: ["ex-chmodsym-01", "ex-chmodsym-02"],
+    exerciseIds: ["ex-perm-intro-01", "ex-perm-intro-02"],
     requiredPoints: 20,
     isLocked: true
   },
+  {
+    moduleId: "chmod-777",
+    title: "chmod 777 (Akses Penuh)",
+    level: 5,
+    summary: "Memberikan akses penuh read, write, dan execute kepada semua pengguna.",
+    command: "chmod 777",
+    syntax: "chmod 777 [nama_file]",
+    examples: ["chmod 777 script.sh"],
+    notes: [
+      "Angka 7 diperoleh dari 4 (read) + 2 (write) + 1 (execute) = 7 untuk owner, group, dan others."
+    ],
+    exerciseIds: ["ex-chmod777-01"],
+    requiredPoints: 15,
+    isLocked: true
+  },
+  {
+    moduleId: "chmod-400",
+    title: "chmod 400 (Hanya Owner)",
+    level: 5,
+    summary: "Membatasi akses hanya untuk pemilik file.",
+    command: "chmod 400",
+    syntax: "chmod 400 [nama_file]",
+    examples: ["chmod 400 rahasia.txt"],
+    notes: [
+      "Hanya owner yang bisa read (4). Group (0) dan Others (0) tidak memiliki akses sama sekali."
+    ],
+    exerciseIds: ["ex-chmod400-01"],
+    requiredPoints: 15,
+    isLocked: true
+  },
+  {
+    moduleId: "chmod-644",
+    title: "chmod 644 (File Website)",
+    level: 5,
+    summary: "Menetapkan hak akses standar yang aman untuk file website.",
+    command: "chmod 644",
+    syntax: "chmod 644 [nama_file]",
+    examples: ["chmod 644 index.php"],
+    notes: [
+      "Owner bisa read/write (6), sedangkan group (4) dan others (4) hanya bisa membaca (read)."
+    ],
+    exerciseIds: ["ex-chmod644-01"],
+    requiredPoints: 15,
+    isLocked: true
+  },
+  {
+    moduleId: "chmod-755",
+    title: "chmod 755 (Folder Website)",
+    level: 5,
+    summary: "Menetapkan hak akses standar yang aman untuk folder/direktori website.",
+    command: "chmod 755",
+    syntax: "chmod 755 [nama_folder]",
+    examples: ["chmod 755 public_html"],
+    notes: [
+      "Owner bisa read/write/execute (7), sedangkan group (5) dan others (5) bisa read/execute."
+    ],
+    exerciseIds: ["ex-chmod755-01"],
+    requiredPoints: 15,
+    isLocked: true
+  },
 
-  // LEVEL 9
+  // LEVEL 6 — Permission Lanjutan
+  {
+    moduleId: "chmod-symbolic",
+    title: "chmod Simbolik",
+    level: 6,
+    summary: "Mengubah hak akses file/folder menggunakan simbol representasi kelompok user (+/- dan rwx).",
+    command: "chmod",
+    syntax: "chmod [user_group_others][+/-][rwx] [nama_file]",
+    examples: ["chmod u+x run.sh", "chmod g-w config.php", "chmod o-r data.json"],
+    notes: [
+      "Simbol kelompok:\n- u = user/owner\n- g = group\n- o = others\n- a = all (semua kelompok sekaligus)",
+      "Simbol aksi:\n- '+' = menambahkan hak akses\n- '-' = mencabut/menghapus hak akses"
+    ],
+    exerciseIds: ["ex-chmodsym-01", "ex-chmodsym-02", "ex-chmodsym-03"],
+    requiredPoints: 25,
+    isLocked: true
+  },
   {
     moduleId: "chown",
     title: "Mengubah Pemilik dengan chown",
-    level: 9,
+    level: 6,
     summary: "Mengubah pemilik (owner) dan kelompok (group) suatu file atau folder.",
     commandMeaning: "change owner",
     command: "chown",
     syntax: "chown [owner] [nama_file]\nchown [owner]:[group] [nama_file]",
-    examples: ["chown admin web.log", "chown user:group config.json", "chown -R www-data:www-data public_html/"],
+    examples: ["chown admin web.log", "chown -R user:group data/"],
     notes: [
-      "Gunakan flag '-R' untuk mengubah owner secara rekursif (termasuk semua file dan folder di dalamnya).",
-      "Pemberitahuan: Command chown biasanya membutuhkan hak akses Administrator/Root (sudo chown...) untuk bisa dieksekusi di server Linux sungguhan."
+      "Gunakan flag '-R' untuk mengubah owner secara rekursif (termasuk semua file dan folder di dalamnya)."
     ],
-    requiresAdmin: true,
     exerciseIds: ["ex-chown-01", "ex-chown-02"],
-    requiredPoints: 25,
+    requiredPoints: 20,
     isLocked: true
   },
-
-  // LEVEL 10
   {
     moduleId: "cpanel",
     title: "Permission di cPanel File Manager",
-    level: 10,
+    level: 6,
     summary: "Memahami cara mengubah hak akses file/folder secara visual melalui File Manager cPanel hosting.",
     command: "cpanel",
     syntax: "visual action (no terminal command)",
     examples: [
       "1. Masuk ke File Manager cPanel.",
       "2. Klik kanan file/folder, pilih 'Change Permissions'.",
-      "3. Centang kotak r/w/x sesuai kebutuhan (misal 644 atau 755)."
+      "3. Centang kotak r/w/x sesuai kebutuhan (644 atau 755)."
     ],
     notes: [
-      "cPanel File Manager menyediakan antarmuka checklist yang intuitif. Mencontreng kotak Read/Write/Execute otomatis menjumlahkan nilai oktal di bagian bawah dialog.",
-      "Meskipun dilakukan secara visual dengan mouse, di balik layar cPanel mengeksekusi perintah chmod yang setara pada server hosting."
+      "cPanel File Manager menyediakan antarmuka checklist yang intuitif. Mencontreng kotak Read/Write/Execute otomatis menjumlahkan nilai oktal di bagian bawah dialog."
     ],
     exerciseIds: ["ex-cpanel-01", "ex-cpanel-02"],
     requiredPoints: 20,

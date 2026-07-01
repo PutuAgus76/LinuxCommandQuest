@@ -4,14 +4,15 @@ import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { modules } from "@/data/modules";
-import { getProgress, saveProgress } from "@/lib/storage";
-import { isModuleLocked, evaluateUnlockedBadges } from "@/lib/progress-utils";
+import { isModuleLocked } from "@/lib/progress-utils";
 import { ExercisePanel } from "@/components/modul/exercise-panel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { getClientToken } from "@/lib/clientAuth";
+import { parseApiResponse } from "@/lib/apiHelper";
 import { 
   ArrowLeft, 
   Copy, 
@@ -34,23 +35,31 @@ export default function ModulePage({ params }: PageProps) {
   const moduleId = resolvedParams.moduleId;
   const router = useRouter();
 
-  const [progress, setProgress] = useState(getProgress());
+  const [progress, setProgress] = useState<any>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isCompletedThisSession, setIsCompletedThisSession] = useState(false);
 
   const moduleData = modules.find((m) => m.moduleId === moduleId);
 
+  const fetchModuleProgress = async () => {
+    try {
+      const token = getClientToken();
+      const res = await fetch("/api/course/progress", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await parseApiResponse(res);
+      setProgress(data.progress);
+    } catch (err) {
+      console.error("Failed to load progress:", err);
+    } finally {
+      setIsLoaded(true);
+    }
+  };
+
   useEffect(() => {
     if (!moduleData) return;
-    
-    // Save last visited module
-    const currentProgress = getProgress();
-    currentProgress.lastVisitedModuleId = moduleId;
-    saveProgress(currentProgress);
-    setProgress(currentProgress);
-    
-    setIsLoaded(true);
+    fetchModuleProgress();
   }, [moduleId, moduleData]);
 
   if (!moduleData) {
@@ -68,11 +77,20 @@ export default function ModulePage({ params }: PageProps) {
     );
   }
 
+  if (!isLoaded || !progress) {
+    return (
+      <div className="container mx-auto px-4 py-16 flex flex-col items-center justify-center space-y-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#16A34A]"></div>
+        <p className="text-gray-500 font-sans text-sm">Memuat modul & progress...</p>
+      </div>
+    );
+  }
+
   // Check locking state
   const isLocked = isModuleLocked(moduleData, progress.completedModuleIds);
   const isCompleted = progress.completedModuleIds.includes(moduleId);
 
-  if (isLoaded && isLocked) {
+  if (isLocked) {
     return (
       <div className="container mx-auto px-4 py-16 text-center space-y-4 max-w-md">
         <Lock className="h-16 w-16 text-gray-400 mx-auto" />
@@ -96,56 +114,16 @@ export default function ModulePage({ params }: PageProps) {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  const handleCompleteModule = (
+  const handleCompleteModule = async (
     gainedPoints: number,
     updatedAttempts: Record<string, { attemptCount: number; isCorrect: boolean; usedHint: boolean }>
   ) => {
-    const currentProgress = getProgress();
+    // Refresh progress state from server
+    await fetchModuleProgress();
     
-    // Update attempts
-    currentProgress.exerciseAttempts = {
-      ...currentProgress.exerciseAttempts,
-      ...updatedAttempts
-    };
+    // Also notify navbar to update points
+    window.dispatchEvent(new Event("points-updated"));
 
-    // Mark module as completed if not already
-    if (!currentProgress.completedModuleIds.includes(moduleId)) {
-      currentProgress.completedModuleIds.push(moduleId);
-    }
-
-    // Add points
-    currentProgress.totalPoints += gainedPoints;
-
-    // Add mastered command
-    if (!currentProgress.masteredCommands.includes(moduleData.command)) {
-      currentProgress.masteredCommands.push(moduleData.command);
-    }
-
-    // Evaluate newly unlocked badges
-    const newBadges = evaluateUnlockedBadges(currentProgress.completedModuleIds);
-    const freshlyUnlockedBadges = newBadges.filter(
-      (bId) => !currentProgress.unlockedBadgeIds.includes(bId)
-    );
-    
-    if (freshlyUnlockedBadges.length > 0) {
-      currentProgress.unlockedBadgeIds = [
-        ...currentProgress.unlockedBadgeIds,
-        ...freshlyUnlockedBadges
-      ];
-      freshlyUnlockedBadges.forEach((bId) => {
-        const badgeName = bId === "terminal-beginner" ? "Terminal Beginner" :
-                          bId === "file-explorer" ? "File Explorer" :
-                          bId === "vim-survivor" ? "Vim Survivor" :
-                          bId === "permission-master" ? "Permission Master" : "cPanel Ready";
-        
-        toast.success(`Selamat! Anda mendapatkan Badge Baru: ${badgeName}!`, {
-          duration: 5000,
-        });
-      });
-    }
-
-    saveProgress(currentProgress);
-    setProgress(currentProgress);
     setIsCompletedThisSession(true);
 
     if (gainedPoints > 0) {

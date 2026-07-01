@@ -95,14 +95,14 @@ export function evaluateUnlockedBadges(completedModuleIds: string[]): string[] {
     unlocked.push("vim-survivor");
   }
   
-  // 4. Permission Master: Menyelesaikan seluruh modul Level 5 s/d 9 (permission & chmod/chown)
-  const permissionModules = modules.filter((m) => m.level >= 5 && m.level <= 9).map((m) => m.moduleId);
+  // 4. Permission Master: Menyelesaikan seluruh modul Level 5 dan Level 6 (kecuali cpanel)
+  const permissionModules = modules.filter((m) => m.level === 5 || (m.level === 6 && m.moduleId !== "cpanel")).map((m) => m.moduleId);
   if (permissionModules.length > 0 && permissionModules.every((id) => completedModuleIds.includes(id))) {
     unlocked.push("permission-master");
   }
   
-  // 5. cPanel Ready: Menyelesaikan modul Level 10 (permission cPanel)
-  const level10Modules = modules.filter((m) => m.level === 10).map((m) => m.moduleId);
+  // 5. cPanel Ready: Menyelesaikan modul cpanel di Level 6
+  const level10Modules = modules.filter((m) => m.moduleId === "cpanel").map((m) => m.moduleId);
   if (level10Modules.length > 0 && level10Modules.every((id) => completedModuleIds.includes(id))) {
     unlocked.push("cpanel-ready");
   }

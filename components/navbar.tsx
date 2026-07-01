@@ -1,29 +1,68 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { getProgress } from "@/lib/storage";
+import { usePathname, useRouter } from "next/navigation";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Terminal, Trophy, User, Menu } from "lucide-react";
+import { Terminal, Trophy, User, Menu, LogOut, Settings as SettingsIcon } from "lucide-react";
+
+import { getClientToken } from "@/lib/clientAuth";
+import { useAuth } from "@/components/providers/auth-provider";
+
+import { parseApiResponse } from "@/lib/apiHelper";
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
   const [points, setPoints] = useState(0);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const updatePoints = () => {
-    const progress = getProgress();
-    setPoints(progress.totalPoints);
+  const fetchPoints = async () => {
+    try {
+      const token = getClientToken();
+      if (!token) {
+        setPoints(0);
+        return;
+      }
+      const res = await fetch("/api/course/summary", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await parseApiResponse(res);
+      setPoints(data.totalPoints || 0);
+    } catch (err) {
+      console.error("Failed to fetch points in navbar:", err);
+    }
   };
 
   useEffect(() => {
-    updatePoints();
-    window.addEventListener("local-storage-update", updatePoints);
+    fetchPoints();
+    window.addEventListener("points-updated", fetchPoints);
+    window.addEventListener("local-storage-update", fetchPoints);
     return () => {
-      window.removeEventListener("local-storage-update", updatePoints);
+      window.removeEventListener("points-updated", fetchPoints);
+      window.removeEventListener("local-storage-update", fetchPoints);
     };
   }, []);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    setShowUserMenu(false);
+    await logout();
+    router.push("/login");
+  };
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -38,7 +77,7 @@ export function Navbar() {
         
         {/* Brand */}
         <div className="flex items-center space-x-2">
-          {/* Mobile Hamburguer Drawer */}
+          {/* Mobile Hamburger Drawer */}
           <div className="md:hidden">
             <Sheet>
               <SheetTrigger render={
@@ -70,6 +109,18 @@ export function Navbar() {
                   } />
                   <SheetClose render={
                     <Link
+                      href="/workspace"
+                      className={`text-sm font-semibold font-sans py-2.5 px-3 rounded-lg transition-colors ${
+                        isActive("/workspace")
+                          ? "bg-[#16A34A]/10 text-[#16A34A]"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      Virtual Workspace
+                    </Link>
+                  } />
+                  <SheetClose render={
+                    <Link
                       href="/progress"
                       className={`text-sm font-semibold font-sans py-2.5 px-3 rounded-lg transition-colors ${
                         isActive("/progress")
@@ -80,6 +131,14 @@ export function Navbar() {
                       Progress Saya
                     </Link>
                   } />
+                  {user && (
+                    <button
+                      onClick={handleLogout}
+                      className="text-sm font-semibold font-sans py-2.5 px-3 rounded-lg transition-colors text-red-600 hover:bg-red-50 hover:text-red-700 text-left"
+                    >
+                      Keluar
+                    </button>
+                  )}
                 </div>
               </SheetContent>
             </Sheet>
@@ -106,29 +165,78 @@ export function Navbar() {
             Dashboard
           </Link>
           <Link
+            href="/workspace"
+            className={`transition-colors hover:text-gray-800 ${
+              isActive("/workspace") ? "text-[#16A34A] border-b-2 border-[#16A34A] pb-5 pt-1" : "text-gray-500 pb-5 pt-1"
+            }`}
+          >
+            Workspace
+          </Link>
+          <Link
             href="/progress"
             className={`transition-colors hover:text-gray-800 ${
               isActive("/progress") ? "text-[#16A34A] border-b-2 border-[#16A34A] pb-5 pt-1" : "text-gray-500 pb-5 pt-1"
             }`}
           >
-            Progress Saya
+            Progress
           </Link>
         </nav>
 
         {/* User Stats Widget */}
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-1.5 bg-[#F97316]/10 px-3 py-1.5 rounded-full text-[#F97316]">
-            <Trophy className="h-4 w-4 fill-current" />
-            <span className="text-sm font-semibold font-sans">{points} Poin</span>
+        {user ? (
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-1.5 bg-[#F97316]/10 px-3 py-1.5 rounded-full text-[#F97316]">
+              <Trophy className="h-4 w-4 fill-current" />
+              <span className="text-sm font-semibold font-sans">{points} Poin</span>
+            </div>
+
+            {/* Avatar with dropdown */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setShowUserMenu((v) => !v)}
+                className="flex items-center justify-center h-9 w-9 rounded-full bg-gray-100 hover:bg-[#16A34A]/10 text-gray-600 hover:text-[#16A34A] transition-colors border border-transparent hover:border-[#16A34A]/20"
+                title="Profil & Keluar"
+                aria-expanded={showUserMenu}
+              >
+                <User className="h-4 w-4" />
+              </button>
+
+              {/* Dropdown Menu */}
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl border border-gray-100 shadow-lg py-1.5 z-50 animate-fadeIn">
+                  <div className="px-4 py-2 border-b border-gray-50">
+                    <p className="text-xs text-gray-400 font-sans truncate">
+                      {user.email}
+                    </p>
+                  </div>
+                  <Link
+                    href="/settings"
+                    onClick={() => setShowUserMenu(false)}
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-sans text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                  >
+                    <SettingsIcon className="h-4 w-4 text-gray-400" />
+                    Profile &amp; Settings
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm font-sans text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-          <Link
-            href="/progress"
-            className="flex items-center justify-center h-9 w-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
-            title="Lihat Profil & Progress"
-          >
-            <User className="h-4 w-4" />
-          </Link>
-        </div>
+        ) : (
+          <div className="flex items-center space-x-4">
+            <Link href="/login">
+              <Button className="bg-[#16A34A] hover:bg-green-700 text-white font-sans text-xs px-4 py-2 font-semibold shadow-sm">
+                Masuk
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
     </header>
   );

@@ -24,6 +24,12 @@ export interface Exercise {
   points: number;                  // poin saat dijawab benar mandiri
   maxAttemptsBeforeHint: number;   // default: 3
   hintPenaltyMultiplier?: number;  // opsional, default 0 (poin 0 jika pakai "Lihat Jawaban")
+  setupSteps?: Array<{
+    type: "directory" | "file" | "cwd";
+    path: string;
+    content?: string;
+    mode?: number;
+  }>;
 }
 
 export interface UserProgress {

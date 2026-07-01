@@ -3,10 +3,13 @@
 import React, { useState, useEffect } from "react";
 import { Exercise } from "@/types";
 import { exercises as allExercises } from "@/data/exercises";
-import { validateAnswer } from "@/lib/validation";
+import { getClientToken, getLinuxUsername, setLinuxUsername } from "@/lib/clientAuth";
 import { TerminalInput } from "../terminal/terminal-input";
+import type { ValidationStatus, TerminalEntry } from "../terminal/terminal-input";
+import { parseApiResponse } from "@/lib/apiHelper";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import Swal from "sweetalert2";
 import {
   Card,
   CardContent,
@@ -23,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CheckCircle, XCircle, ArrowRight, Eye, Trophy, HelpCircle } from "lucide-react";
+import { ArrowRight, Eye, Trophy, HelpCircle } from "lucide-react";
 
 interface ExercisePanelProps {
   moduleId: string;
@@ -52,20 +55,65 @@ export function ExercisePanel({
   const [currentIdx, setCurrentIdx] = useState(0);
   const [inputValue, setInputValue] = useState("");
   const [attemptCount, setAttemptCount] = useState(0);
-  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  const [validationStatus, setValidationStatus] = useState<ValidationStatus>(null);
   const [usedHint, setUsedHint] = useState(false);
-  const [feedback, setFeedback] = useState("");
   const [showHintDialog, setShowHintDialog] = useState(false);
-  const [terminalHistory, setTerminalHistory] = useState<
-    Array<{ command: string; isCorrect: boolean; explanation?: string }>
-  >([]);
+  const [terminalHistory, setTerminalHistory] = useState<TerminalEntry[]>([]);
   
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [cwd, setCwd] = useState<string>("~");
+  const [username, setUsername] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+
   // Track status of all exercises in this module
   const [sessionResults, setSessionResults] = useState<
     Record<string, { attemptCount: number; isCorrect: boolean; usedHint: boolean }>
-  >({});
+  >({})
 
   const activeExercise = moduleExercises[currentIdx];
+
+  // Initialize terminal session — reuse existing shared session
+  useEffect(() => {
+    async function initSession() {
+      try {
+        const token = getClientToken();
+        
+        // 1. Sync Profile — get authoritative linux_username from Supabase
+        const syncRes = await fetch("/api/profile/sync", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+        
+        const syncData = await parseApiResponse(syncRes);
+        const uname: string = syncData.profile?.linux_username || getLinuxUsername();
+        setUsername(uname);
+        setLinuxUsername(uname);
+
+        // 2. Get or reuse shared terminal session (persistent CWD across modules)
+        const sessionRes = await fetch("/api/terminal/session", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+
+        const { session } = await parseApiResponse(sessionRes);
+        setSessionId(session.id);
+        // Restore persisted CWD from session
+        if (session.current_path) {
+          setCwd(session.current_path);
+        }
+      } catch (err) {
+        console.error("Failed to initialize session:", err);
+        setUsername(getLinuxUsername());
+      }
+    }
+    initSession();
+  }, []);
 
   // Reset or load state when exercise index changes
   useEffect(() => {
@@ -73,26 +121,22 @@ export function ExercisePanel({
     
     const saved = savedAttempts[activeExercise.exerciseId];
     if (saved && saved.isCorrect) {
-      setIsCorrect(true);
+      setValidationStatus("correct");
       setUsedHint(saved.usedHint);
       setAttemptCount(saved.attemptCount);
-      setFeedback(
-        saved.usedHint
-          ? `Selesai dengan bantuan. Jawaban yang benar: ${activeExercise.acceptedAnswers[0]}`
-          : "Anda sudah menyelesaikan latihan ini sebelumnya!"
-      );
       setTerminalHistory([
         {
-          command: saved.usedHint ? activeExercise.acceptedAnswers[0] : activeExercise.acceptedAnswers[0],
-          isCorrect: true,
-          explanation: activeExercise.explanation
+          command: activeExercise.acceptedAnswers[0],
+          output: "",
+          status: "success",
+          cwdBefore: "~",
+          cwdAfter: "~"
         }
       ]);
     } else {
-      setIsCorrect(null);
+      setValidationStatus(null);
       setUsedHint(false);
       setAttemptCount(0);
-      setFeedback("");
       setInputValue("");
       setTerminalHistory([]);
     }
@@ -114,87 +158,177 @@ export function ExercisePanel({
     );
   }
 
-  const handleSubmit = () => {
-    if (!activeExercise || isCorrect) return;
+  const handleSubmit = async () => {
+    if (!activeExercise || validationStatus === "correct" || !sessionId || loading) return;
 
     const nextAttemptCount = attemptCount + 1;
     setAttemptCount(nextAttemptCount);
+    setLoading(true);
 
-    const isAnswerCorrect = validateAnswer(inputValue, activeExercise.acceptedAnswers);
-
-    if (isAnswerCorrect) {
-      setIsCorrect(true);
-      setFeedback(`✓ Hebat! Jawaban Anda benar. ${activeExercise.explanation}`);
-      setTerminalHistory((prev) => [
-        ...prev,
-        {
-          command: inputValue,
-          isCorrect: true,
-          explanation: activeExercise.explanation
+    try {
+      const token = getClientToken();
+      const formatPromptPath = (fullPath: string, user: string) => {
+        const homePrefix = `/home/${user}`;
+        if (fullPath.startsWith(homePrefix)) {
+          return "~" + fullPath.substring(homePrefix.length);
         }
-      ]);
-
-      const newResults = {
-        ...sessionResults,
-        [activeExercise.exerciseId]: {
-          attemptCount: nextAttemptCount,
-          isCorrect: true,
-          usedHint: usedHint
-        }
+        return fullPath;
       };
-      setSessionResults(newResults);
-    } else {
-      setIsCorrect(false);
+
+      const getActivePrompt = (pathStr: string) => {
+        if (moduleId === "vim") {
+          if (activeExercise.exerciseId === "ex-vim-02") return "[VIM - NORMAL MODE] --";
+          if (activeExercise.exerciseId === "ex-vim-03") return "[VIM - INSERT MODE] --";
+          if (
+            activeExercise.exerciseId === "ex-vim-04" ||
+            activeExercise.exerciseId === "ex-vim-05" ||
+            activeExercise.exerciseId === "ex-vim-06"
+          ) {
+            return "[VIM - COMMAND MODE] :";
+          }
+        }
+        return `${username}@linux-quest:${formatPromptPath(pathStr, username)}$`;
+      };
+
+      const cwdBefore = getActivePrompt(cwd);
+
+      const res = await fetch("/api/course/submit-exercise", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          sessionId,
+          exerciseId: activeExercise.exerciseId,
+          command: inputValue,
+          usedHint: !!usedHint
+        })
+      });
+
+      const data = await parseApiResponse(res);
+
+      if (data.cwd) {
+        setCwd(data.cwd);
+      }
+
+      const status: ValidationStatus = data.validationStatus;
+      setValidationStatus(status);
+
+      // Append shell result to terminal transcript history (standard Unix behaviour)
       setTerminalHistory((prev) => [
         ...prev,
         {
           command: inputValue,
-          isCorrect: false
+          output: data.output,
+          status: data.executeStatus,
+          cwdBefore,
+          cwdAfter: getActivePrompt(data.cwd || cwd),
         }
       ]);
 
-      if (nextAttemptCount >= activeExercise.maxAttemptsBeforeHint) {
-        setFeedback(
-          `✗ Command kurang tepat. Anda telah salah ${nextAttemptCount} kali. Anda sekarang bisa menggunakan tombol "Lihat Jawaban" di bawah.`
-        );
+      if (status === "correct") {
+        window.dispatchEvent(new Event("points-updated"));
+        
+        const finalMsg = usedHint
+          ? "Command benar, latihan selesai. Poin 0 karena jawaban sudah ditampilkan."
+          : `✓ ${data.message} ${activeExercise.explanation}`;
+
+        // SweetAlert2 Success Toast
+        Swal.fire({
+          toast: true,
+          position: "top-end",
+          icon: "success",
+          title: "Jawaban benar!",
+          text: finalMsg,
+          showConfirmButton: false,
+          timer: 2200,
+          timerProgressBar: true,
+        });
+
+        const nextResults = {
+          ...sessionResults,
+          [activeExercise.exerciseId]: {
+            attemptCount: nextAttemptCount,
+            isCorrect: true,
+            usedHint,
+          }
+        };
+        setSessionResults(nextResults);
+
+        // Clear input value on success
+        setInputValue("");
+
+        // Check if this is the last exercise in the module
+        const isLastExercise = currentIdx === moduleExercises.length - 1;
+        if (isLastExercise) {
+          setTimeout(() => {
+            Swal.fire({
+              icon: "success",
+              title: "Modul selesai!",
+              text: "Selamat, kamu berhasil menyelesaikan latihan ini.",
+              confirmButtonText: "Lanjutkan",
+              allowOutsideClick: false,
+            }).then(() => {
+              handleNext(nextResults);
+            });
+          }, 2400);
+        }
+
+      } else if (status === "near_miss") {
+        // SweetAlert2 Warning Toast
+        Swal.fire({
+          toast: true,
+          position: "top-end",
+          icon: "warning",
+          title: "Hampir benar",
+          text: data.message || "Terdapat sedikit kesalahan pada jawaban Anda.",
+          showConfirmButton: false,
+          timer: 3500,
+          timerProgressBar: true,
+        });
+
       } else {
-        setFeedback(
-          `✗ Command kurang tepat (Percobaan ${nextAttemptCount}/${activeExercise.maxAttemptsBeforeHint}). Periksa kembali spasi, nama file, atau huruf kapital.`
-        );
+        let errorMsg = data.message || "Command kurang tepat.";
+        if (data.output && data.executeStatus === "error") {
+          errorMsg = `Shell: ${data.output}\n${errorMsg}`;
+        }
+
+        // SweetAlert2 Error Toast
+        Swal.fire({
+          toast: true,
+          position: "top-end",
+          icon: "error",
+          title: "Jawaban belum tepat",
+          text: errorMsg,
+          showConfirmButton: false,
+          timer: 3500,
+          timerProgressBar: true,
+        });
       }
+    } catch (error) {
+      console.error("Verification failed:", error);
+      setValidationStatus("incorrect");
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "error",
+        title: "Koneksi gagal",
+        text: "Terjadi kesalahan koneksi ke server.",
+        showConfirmButton: false,
+        timer: 3000,
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleRevealAnswer = () => {
-    if (!activeExercise) return;
-    
     setUsedHint(true);
-    setIsCorrect(true);
-    const correctAnswer = activeExercise.acceptedAnswers[0];
-    setInputValue(correctAnswer);
-    setFeedback(`Diperlihatkan: ${correctAnswer}. Silakan salin command tersebut untuk lanjut.`);
-    setTerminalHistory((prev) => [
-      ...prev,
-      {
-        command: correctAnswer,
-        isCorrect: true,
-        explanation: activeExercise.explanation
-      }
-    ]);
     setShowHintDialog(false);
-
-    const newResults = {
-      ...sessionResults,
-      [activeExercise.exerciseId]: {
-        attemptCount: attemptCount,
-        isCorrect: true,
-        usedHint: true
-      }
-    };
-    setSessionResults(newResults);
   };
 
-  const handleNext = () => {
+  const handleNext = (finalResultsOverride?: Record<string, { attemptCount: number; isCorrect: boolean; usedHint: boolean }>) => {
     if (currentIdx < moduleExercises.length - 1) {
       setCurrentIdx((prev) => prev + 1);
     } else {
@@ -202,7 +336,7 @@ export function ExercisePanel({
       // Only gain points if the exercise is solved without hint and wasn't already completed
       let totalGainedPoints = 0;
       
-      const mergedResults = { ...savedAttempts, ...sessionResults };
+      const mergedResults = { ...savedAttempts, ...sessionResults, ...finalResultsOverride };
 
       moduleExercises.forEach((ex) => {
         const result = mergedResults[ex.exerciseId];
@@ -256,17 +390,50 @@ export function ExercisePanel({
           value={inputValue}
           onChange={setInputValue}
           onSubmit={handleSubmit}
-          disabled={isCorrect === true && !usedHint}
-          placeholder="Ketik command Anda di sini..."
-          feedback={feedback}
-          isCorrect={isCorrect}
+          disabled={loading || validationStatus === "correct"}
+          placeholder={
+            moduleId === "vim"
+              ? "Ketik tombol/command Vim di sini..."
+              : loading
+              ? "Memproses command..."
+              : "Ketik command Anda di sini..."
+          }
           history={terminalHistory}
+          cwd={cwd}
+          username={username}
+          vimMode={moduleId === "vim"}
+          vimSubMode={
+            activeExercise.exerciseId === "ex-vim-01" ? "SHELL" :
+            activeExercise.exerciseId === "ex-vim-02" ? "NORMAL" :
+            activeExercise.exerciseId === "ex-vim-03" ? "INSERT" :
+            activeExercise.exerciseId === "ex-vim-04" ||
+            activeExercise.exerciseId === "ex-vim-05" ||
+            activeExercise.exerciseId === "ex-vim-06"
+              ? "COMMAND"
+              : "SHELL"
+          }
         />
+
+        {/* Hint Box (Only shown if usedHint is true) */}
+        {usedHint && (
+          <div className="bg-[#F97316]/10 border border-[#F97316]/30 rounded-lg p-4 space-y-2 select-text mt-3">
+            <div className="text-xs font-semibold uppercase tracking-wider text-[#F97316] flex items-center gap-1.5 font-sans select-none">
+              <Eye size={14} />
+              <span>Petunjuk Jawaban (Poin Latihan Ini: 0)</span>
+            </div>
+            <p className="text-sm font-mono bg-white text-gray-800 border border-gray-200 rounded p-2.5 font-semibold break-all">
+              {activeExercise.acceptedAnswers[0]}
+            </p>
+            <p className="text-xs text-gray-500 font-sans leading-relaxed select-none">
+              Silakan ketik perintah di atas persis ke dalam simulator terminal lalu submit untuk menyelesaikannya.
+            </p>
+          </div>
+        )}
       </CardContent>
 
       <CardFooter className="bg-[#FAFAFA] border-t border-[#E5E7EB] py-4 flex items-center justify-between">
         <div>
-          {attemptCount >= activeExercise.maxAttemptsBeforeHint && !isCorrect && (
+          {attemptCount >= activeExercise.maxAttemptsBeforeHint && validationStatus !== "correct" && (
             <Button
               type="button"
               variant="outline"
@@ -281,17 +448,17 @@ export function ExercisePanel({
         </div>
 
         <div className="flex space-x-2">
-          {!isCorrect ? (
+          {validationStatus !== "correct" ? (
             <Button
               onClick={handleSubmit}
-              disabled={!inputValue.trim()}
+              disabled={!inputValue.trim() || loading}
               className="bg-[#16A34A] hover:bg-[#15803d] text-white font-sans px-5"
             >
-              Submit Command
+              {loading ? "Memproses..." : "Submit Command"}
             </Button>
           ) : (
             <Button
-              onClick={handleNext}
+              onClick={() => handleNext()}
               className="bg-[#16A34A] hover:bg-[#15803d] text-white font-sans px-5 gap-1.5 animate-bounce-subtle"
             >
               <span>

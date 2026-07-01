@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getProgress, resetProgress } from "@/lib/storage";
 import { getAnswerAccuracy, getGlobalProgressPercentage } from "@/lib/progress-utils";
 import { badges } from "@/data/badges";
 import { modules } from "@/data/modules";
@@ -11,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { getClientToken } from "@/lib/clientAuth";
+import { parseApiResponse } from "@/lib/apiHelper";
 import {
   Dialog,
   DialogContent,
@@ -33,32 +34,74 @@ export default function ProgressPage() {
   const [accuracy, setAccuracy] = useState(0);
   const [showResetDialog, setShowResetDialog] = useState(false);
 
+  const fetchProgressData = async () => {
+    try {
+      const token = getClientToken();
+      if (!token) return;
+      const res = await fetch("/api/course/progress", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await parseApiResponse(res);
+      const progress = data.progress || {
+        totalPoints: 0,
+        completedModuleIds: [],
+        unlockedBadgeIds: [],
+        masteredCommands: [],
+        exerciseAttempts: {}
+      };
+      setPoints(progress.totalPoints || 0);
+      setCompletedModuleIds(progress.completedModuleIds || []);
+      setUnlockedBadgeIds(progress.unlockedBadgeIds || []);
+      setMasteredCommands(progress.masteredCommands || []);
+      setAccuracy(getAnswerAccuracy(progress));
+    } catch (err) {
+      console.error("Failed to load progress:", err);
+    } finally {
+      setIsLoaded(true);
+    }
+  };
+
   useEffect(() => {
-    const progress = getProgress();
-    setPoints(progress.totalPoints);
-    setCompletedModuleIds(progress.completedModuleIds);
-    setUnlockedBadgeIds(progress.unlockedBadgeIds);
-    setMasteredCommands(progress.masteredCommands);
-    setAccuracy(getAnswerAccuracy(progress));
-    setIsLoaded(true);
+    fetchProgressData();
   }, []);
 
-  const handleReset = () => {
-    resetProgress();
-    toast.success("Progress berhasil direset! Semua poin, lencana, dan riwayat belajar telah dihapus.");
-    setShowResetDialog(false);
-    
-    // Refresh page state
-    setPoints(0);
-    setCompletedModuleIds([]);
-    setUnlockedBadgeIds([]);
-    setMasteredCommands([]);
-    setAccuracy(0);
-    
-    // Redirect to landing
-    setTimeout(() => {
-      router.push("/");
-    }, 1000);
+  const handleReset = async () => {
+    setIsLoaded(false);
+    try {
+      const token = getClientToken();
+      const res = await fetch("/api/workspace/reset", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      await parseApiResponse(res);
+      
+      // Clear local storage for backup
+      try {
+        localStorage.removeItem("linux_command_quest_progress");
+      } catch (e) {}
+
+      toast.success("Progress belajar & Workspace berhasil diriset!");
+      setShowResetDialog(false);
+      
+      // Refresh page state
+      setPoints(0);
+      setCompletedModuleIds([]);
+      setUnlockedBadgeIds([]);
+      setMasteredCommands([]);
+      setAccuracy(0);
+      
+      // Redirect to dashboard/home
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1200);
+    } catch (err: any) {
+      toast.error(err.message || "Gagal meriset progress.");
+    } finally {
+      setIsLoaded(true);
+    }
   };
 
   const globalProgress = getGlobalProgressPercentage(completedModuleIds);

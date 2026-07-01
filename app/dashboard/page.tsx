@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { getProgress } from "@/lib/storage";
-import { isModuleLocked, getGlobalProgressPercentage } from "@/lib/progress-utils";
+import { getClientToken } from "@/lib/clientAuth";
+import { parseApiResponse } from "@/lib/apiHelper";
+import { isModuleLocked } from "@/lib/progress-utils";
 import { modules } from "@/data/modules";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -21,18 +22,61 @@ import {
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [totalPoints, setTotalPoints] = useState(0);
-  const [lastVisitedId, setLastVisitedId] = useState<string | undefined>(undefined);
+  const [linuxUsername, setLinuxUsername] = useState("student");
+  const [displayName, setDisplayName] = useState("Student");
+  const [globalProgress, setGlobalProgress] = useState(0);
+  const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const progress = getProgress();
-    setCompletedIds(progress.completedModuleIds);
-    setTotalPoints(progress.totalPoints);
-    setLastVisitedId(progress.lastVisitedModuleId);
-    setIsLoaded(true);
+    async function loadDashboardData() {
+      try {
+        const token = getClientToken();
+
+        // 1. Sync Profile & Create Personal Workspace (idempotent)
+        const syncRes = await fetch("/api/profile/sync", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        await parseApiResponse(syncRes);
+
+        // 2. Fetch summary stats
+        const summaryRes = await fetch("/api/course/summary", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const summaryData = await parseApiResponse(summaryRes);
+        setTotalPoints(summaryData.totalPoints);
+        setLinuxUsername(summaryData.linuxUsername);
+        setDisplayName(summaryData.displayName);
+        setGlobalProgress(summaryData.globalProgressPercentage);
+
+        // 3. Fetch full course progress
+        const progressRes = await fetch("/api/course/progress", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const progressData = await parseApiResponse(progressRes);
+        setCompletedIds(progressData.progress.completedModuleIds);
+      } catch (err) {
+        console.error("Failed to load dashboard data:", err);
+      } finally {
+        setIsLoaded(true);
+      }
+    }
+
+    loadDashboardData();
   }, []);
+
+  if (!isLoaded) {
+    return (
+      <div className="container mx-auto px-4 py-16 flex flex-col items-center justify-center space-y-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#16A34A]"></div>
+        <p className="text-gray-500 font-sans text-sm">Memuat data pembelajaran...</p>
+      </div>
+    );
+  }
 
   // Calculate dynamic isLocked for each module
   const processedModules = modules.map((mod) => ({
@@ -48,25 +92,16 @@ export default function DashboardPage() {
   // Group modules by Level
   const levels = Array.from(new Set(modules.map((m) => m.level))).sort((a, b) => a - b);
 
-  const globalProgress = getGlobalProgressPercentage(completedIds);
-
-  if (!isLoaded) {
-    return (
-      <div className="container mx-auto px-4 py-16 flex flex-col items-center justify-center space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#16A34A]"></div>
-        <p className="text-gray-500 font-sans text-sm">Memuat data pembelajaran...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl space-y-8">
       {/* Header & Quick stats */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 font-sans tracking-tight">Dashboard Belajar</h1>
+          <h1 className="text-3xl font-bold text-gray-900 font-sans tracking-tight">
+            Dashboard Belajar {displayName && `— ${displayName}`}
+          </h1>
           <p className="text-gray-500 font-sans text-sm mt-1">
-            Selesaikan seluruh modul secara bertahap dari Level 1 hingga Level 10.
+            Linux Identity: <span className="font-mono bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded border border-gray-200">{linuxUsername || "guest"}</span>
           </p>
         </div>
 

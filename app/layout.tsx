@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "sweetalert2/dist/sweetalert2.min.css";
 import { Navbar } from "@/components/navbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -20,6 +21,9 @@ export const metadata: Metadata = {
   description: "Platform e-learning interaktif untuk belajar command line Linux, manajemen file, dan permission secara bertahap dengan terminal simulator.",
 };
 
+import { AuthProvider } from "@/components/providers/auth-provider";
+import { AuthGate } from "@/components/providers/auth-gate";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -31,18 +35,22 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#FAFAFA] text-gray-800 font-sans">
-        <TooltipProvider>
-          <Navbar />
-          <main className="flex-1 flex flex-col">
-            {children}
-          </main>
-          <footer className="border-t border-gray-200 bg-white py-6 mt-auto">
-            <div className="container mx-auto px-4 text-center text-sm text-gray-500 font-sans">
-              &copy; {new Date().getFullYear()} Linux Command Quest. Built for learning operating systems.
-            </div>
-          </footer>
-          <Toaster position="top-right" closeButton richColors />
-        </TooltipProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <Navbar />
+            <AuthGate>
+              <main className="flex-1 flex flex-col">
+                {children}
+              </main>
+            </AuthGate>
+            <footer className="border-t border-gray-200 bg-white py-6 mt-auto">
+              <div className="container mx-auto px-4 text-center text-sm text-gray-500 font-sans">
+                &copy; {new Date().getFullYear()} Linux Command Quest. Built for learning operating systems.
+              </div>
+            </footer>
+            <Toaster position="top-right" closeButton richColors />
+          </TooltipProvider>
+        </AuthProvider>
       </body>
     </html>
   );
