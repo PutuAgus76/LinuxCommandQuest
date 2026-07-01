@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { verifyFirebaseToken } from "@/lib/server/auth";
 import { supabaseAdmin } from "@/lib/server/supabaseAdmin";
+import { validateEnv } from "@/lib/server/envValidator";
 
 export async function GET(request: Request) {
   try {
+    const envCheck = validateEnv();
+    if (!envCheck.valid && envCheck.response) {
+      return envCheck.response;
+    }
+
     // 1. Verify User Token
     const user = await verifyFirebaseToken(request);
     const { uid } = user;

@@ -3,9 +3,15 @@ import { verifyFirebaseToken } from "@/lib/server/auth";
 import { supabaseAdmin } from "@/lib/server/supabaseAdmin";
 import { evaluateUnlockedBadges } from "@/lib/progress-utils";
 import { modules } from "@/data/modules";
+import { validateEnv } from "@/lib/server/envValidator";
 
 export async function GET(request: Request) {
   try {
+    const envCheck = validateEnv();
+    if (!envCheck.valid && envCheck.response) {
+      return envCheck.response;
+    }
+
     const user = await verifyFirebaseToken(request);
     const { uid } = user;
 

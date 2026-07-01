@@ -8,7 +8,8 @@ export async function parseApiResponse(res: Response) {
 
   if (!contentType.includes("application/json")) {
     const text = await res.text();
-    throw new Error(`API returned non-JSON response. Status: ${res.status}. Body: ${text.slice(0, 120)}`);
+    console.error(`Non-JSON response from API (Status ${res.status}):`, text.slice(0, 500));
+    throw new Error("API production error. Cek Vercel Runtime Logs dan Environment Variables.");
   }
 
   const data = await res.json();

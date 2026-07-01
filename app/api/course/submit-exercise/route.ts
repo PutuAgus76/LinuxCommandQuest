@@ -6,6 +6,7 @@ import { getFullPath, resolvePath } from "@/lib/fs/pathResolver";
 import { validateDatabaseEffect, ValidationStatus } from "@/lib/server/exerciseValidator";
 import { exercises as allExercises } from "@/data/exercises";
 import { modules as allModules } from "@/data/modules";
+import { validateEnv } from "@/lib/server/envValidator";
 
 async function ensurePrerequisites(
   workspaceId: string,
@@ -86,6 +87,11 @@ async function ensurePrerequisites(
 
 export async function POST(request: Request) {
   try {
+    const envCheck = validateEnv();
+    if (!envCheck.valid && envCheck.response) {
+      return envCheck.response;
+    }
+
     // 1. Verify User Token
     const user = await verifyFirebaseToken(request);
     const { uid } = user;
